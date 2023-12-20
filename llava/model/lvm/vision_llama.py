@@ -38,8 +38,8 @@ class LongVisionMetaForCausalLM(ABC):
         pass
 
     def encode_images(self, images):
-        image_codes = self.vqgan.get_code(images)
-        image_features = self.vision_embed_tokens(image_codes)
+        image_codes = self.model.vqgan.get_code(images)
+        image_features = self.model.vision_embed_tokens(image_codes)
         return image_features
 
     def prepare_inputs_for_multimodal(
@@ -77,10 +77,10 @@ class LongVisionMetaForCausalLM(ABC):
                 cur_image_features = image_features[cur_image_idx]
                 image_token_start = image_token_indices[0]
                 cur_new_input_embeds.append(self.get_model().embed_tokens(cur_input_ids[:image_token_start]))
-                cur_new_input_embeds.append(self.get_model().embed_tokens(VISION_START)) # TODO tensor, on correct device
+                cur_new_input_embeds.append(self.get_model().embed_tokens(VISION_START))
                 cur_new_input_embeds.append(cur_image_features)
-                cur_new_input_embeds.append(self.get_model().vision_embed_tokens([EOV_TOKEN_INDEX])) # TODO tensor, on correct device
-                cur_new_input_embeds.append(self.get_model().embed_tokens(VISION_END)) # TODO tensor, on correct device
+                cur_new_input_embeds.append(self.get_model().vision_embed_tokens(torch.tensor([EOV_TOKEN_INDEX], dtype=torch.long)))
+                cur_new_input_embeds.append(self.get_model().embed_tokens(VISION_END))
                 cur_image_idx += 1
                 cur_input_ids = cur_input_ids[image_token_start+1:]
                 image_token_indices = torch.where(cur_input_ids == IMAGE_TOKEN_INDEX)[0]
@@ -146,6 +146,7 @@ class LongVisionLlamaForCausalLM(LlamaForCausalLM, LongVisionMetaForCausalLM):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         assert labels is None
+
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -153,6 +154,7 @@ class LongVisionLlamaForCausalLM(LlamaForCausalLM, LongVisionMetaForCausalLM):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         input_ids, attention_mask, past_key_values, inputs_embeds = self.prepare_inputs_for_multimodal(input_ids, attention_mask, past_key_values, images)
+        attention_mask = None # TODO
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.model(

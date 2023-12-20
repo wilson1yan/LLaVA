@@ -31,7 +31,7 @@ def load_pretrained_model(model_path, model_base, model_name, device_map="auto",
         kwargs['device_map'] = {"": device}
     kwargs['torch_dtype'] = torch.float16
 
-    model = LongVisionLlamaForCausalLM.from_pretrained(model_path)
+    model = LongVisionLlamaForCausalLM.from_pretrained(model_path, **kwargs)
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     def image_processor(images, **kwargs):
         out_images = []
@@ -51,11 +51,11 @@ def load_pretrained_model(model_path, model_base, model_name, device_map="auto",
             top = (new_H - image_size) // 2
             right = (new_W + image_size) // 2
             bottom = (new_H + image_size) // 2
-            image = image.crop((left, top, right, bottom))
+            image = np.array(image.crop((left, top, right, bottom))).astype(np.float32)
             image = torch.FloatTensor(image).movedim(-1, 0) / 127.5 - 1
             out_images.append(image)
         out_images = torch.stack(out_images, dim=0)
-        return out_images
+        return dict(pixel_values=out_images)
 
     if hasattr(model.config, "max_sequence_length"):
         context_len = model.config.max_sequence_length

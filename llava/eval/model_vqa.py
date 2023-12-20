@@ -43,10 +43,7 @@ def eval_model(args):
         image_file = line["image"]
         qs = line["text"]
         cur_prompt = qs
-        if model.config.mm_use_im_start_end:
-            qs = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN + DEFAULT_IM_END_TOKEN + '\n' + qs
-        else:
-            qs = DEFAULT_IMAGE_TOKEN + '\n' + qs
+        qs = DEFAULT_IMAGE_TOKEN + '\n' + qs
 
         conv = conv_templates[args.conv_mode].copy()
         conv.append_message(conv.roles[0], qs)
@@ -56,7 +53,7 @@ def eval_model(args):
         input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
 
         image = Image.open(os.path.join(args.image_folder, image_file))
-        image_tensor = image_processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
+        image_tensor = image_processor([image], return_tensors='pt')['pixel_values'][0]
 
         stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
         keywords = [stop_str]
@@ -83,6 +80,7 @@ def eval_model(args):
         if outputs.endswith(stop_str):
             outputs = outputs[:-len(stop_str)]
         outputs = outputs.strip()
+        print(prompt, outputs)
 
         ans_id = shortuuid.uuid()
         ans_file.write(json.dumps({"question_id": idx,
