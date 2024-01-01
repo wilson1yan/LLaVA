@@ -38,7 +38,10 @@ class LongVisionMetaForCausalLM(ABC):
         pass
 
     def encode_images(self, images):
-        image_codes = self.model.vqgan.get_code(images)
+        if images.ndim == 4:
+            image_codes = self.model.vqgan.get_code(images)
+        else:
+            image_codes = images.view(images.shape[0], -1)
         image_features = self.model.vision_embed_tokens(image_codes)
         return image_features
 
@@ -59,6 +62,7 @@ class LongVisionMetaForCausalLM(ABC):
         else:
             image_features = self.encode_images(images)
 
+        device = self.get_model().embed_tokens.weight.device
         new_input_embeds = []
         cur_image_idx = 0
         for batch_idx, cur_input_ids in enumerate(input_ids):
@@ -77,10 +81,10 @@ class LongVisionMetaForCausalLM(ABC):
                 cur_image_features = image_features[cur_image_idx]
                 image_token_start = image_token_indices[0]
                 cur_new_input_embeds.append(self.get_model().embed_tokens(cur_input_ids[:image_token_start]))
-                cur_new_input_embeds.append(self.get_model().embed_tokens(VISION_START))
+                cur_new_input_embeds.append(self.get_model().embed_tokens(VISION_START.to(device)))
                 cur_new_input_embeds.append(cur_image_features)
-                cur_new_input_embeds.append(self.get_model().vision_embed_tokens(torch.tensor([EOV_TOKEN_INDEX], dtype=torch.long)))
-                cur_new_input_embeds.append(self.get_model().embed_tokens(VISION_END))
+                cur_new_input_embeds.append(self.get_model().vision_embed_tokens(torch.tensor([EOV_TOKEN_INDEX], dtype=torch.long).to(device)))
+                cur_new_input_embeds.append(self.get_model().embed_tokens(VISION_END.to(device)))
                 cur_image_idx += 1
                 cur_input_ids = cur_input_ids[image_token_start+1:]
                 image_token_indices = torch.where(cur_input_ids == IMAGE_TOKEN_INDEX)[0]
