@@ -5,7 +5,7 @@ IFS=',' read -ra GPULIST <<< "$gpu_list"
 
 CHUNKS=${#GPULIST[@]}
 
-CKPT="7b-yt128k-laion2B-en-cont-2-30k-image_ultrachatft-1-1epochs"
+CKPT="7b-vision_chat-ft-1M-v2-1-imageft-1"
 SPLIT="llava_gqa_testdev_balanced"
 GQADIR="./playground/data/eval/gqa/data"
 

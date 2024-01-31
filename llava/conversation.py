@@ -371,7 +371,7 @@ default_conversation = conv_vicuna_v1
 conv_templates = {
     "default": conv_lvm,
     "v0": conv_vicuna_v0,
-    "v1": conv_vicuna_v1,
+    "v1": conv_lvm, #conv_vicuna_v1,
     "vicuna_v1": conv_vicuna_v1,
     "llama_2": conv_llama_2,
 
