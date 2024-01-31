@@ -1,0 +1,2 @@
+{"question_id": "landmark/images/03d5e3bfc958be38.jpg", "image": "landmark/images/03d5e3bfc958be38.jpg", "text": "Is this an image of Pietrarsa railway museum?\nAnswer the question using a single word or phrase.", "category": "landmark"}
+{"question_id": "landmark/images/03d5e3bfc958be38.jpg", "image": "landmark/images/03d5e3bfc958be38.jpg", "text": "Is this an image of Washita Battlefield National Historic Site?\nAnswer the question using a single word or phrase.", "category": "landmark"}
