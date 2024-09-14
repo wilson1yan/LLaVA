@@ -385,7 +385,8 @@ conv_templates = {
 
     "mpt": conv_mpt,
 
-    "lvm": conv_lvm
+    "lvm": conv_lvm,
+    "geto": conv_lvm
 }
 
 

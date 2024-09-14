@@ -23,6 +23,7 @@ import torch
 # from llava.model import *
 from llava.constants import DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 from llava.model.lvm.vision_llama import LongVisionLlamaForCausalLM
+from llava.model.geto.geto_llama import GetoVisionLlamaForCausalLM
 
 
 def load_pretrained_model(model_path, model_base, model_name, device_map="auto", device="cuda", **kwargs):
@@ -31,7 +32,7 @@ def load_pretrained_model(model_path, model_base, model_name, device_map="auto",
         kwargs['device_map'] = {"": device}
     kwargs['torch_dtype'] = torch.float16
 
-    model = LongVisionLlamaForCausalLM.from_pretrained(model_path, **kwargs)
+    model = GetoVisionLlamaForCausalLM.from_pretrained(model_path, **kwargs)
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     def image_processor(images, **kwargs):
         out_images = []
