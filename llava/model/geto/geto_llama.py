@@ -9,13 +9,14 @@ from transformers import AutoConfig, AutoModelForCausalLM,\
     LlamaConfig, LlamaModel, LlamaForCausalLM
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-VISION_START = torch.tensor([529, 4924, 29958], dtype=torch.long)
-VISION_END = torch.tensor([1533, 4924, 29958], dtype=torch.long)
-EOF_TOKEN_INDEX = 8192
-EOV_TOKEN_INDEX = 8193
+VISION_START = torch.tensor([506, 25357, 29569], dtype=torch.long)
+VISION_END = torch.tensor([1338, 25357, 29569], dtype=torch.long)
+EOF_TOKEN = torch.zeros((1, 8), dtype=torch.float32)
+EOV_TOKEN = torch.ones((1, 8), dtype=torch.float32)
 IMAGE_TOKEN_INDEX = -200
 IGNORE_INDEX = -100
 
+client = None
 
 class GetoVisionMetaModel:
     def __init__(self, config):
@@ -28,6 +29,16 @@ class GetoVisionMetaModel:
         return image_features
 
 
+def encode_images(images, mask_idx):
+    device = images.device
+    images = images.movedim(1, -1).contiguous().float().cpu().numpy()
+    images = images[:, None].repeat(4, axis=1)
+    result = client.process(images, mask_idx).result()
+    result = [r[0] for r in result]
+    result = [torch.FloatTensor(r).to(device) for r in result]
+    return torch.stack(result)
+
+
 class GetoVisionMetaForCausalLM(ABC):
 
     @abstractmethod
@@ -35,8 +46,15 @@ class GetoVisionMetaForCausalLM(ABC):
         pass
 
     def encode_images(self, images):
-        image_codes = images
-        image_features = self.model.vision_proj(image_codes)
+        global client
+        if client is None:
+            import portal
+            client = portal.Client('localhost', 2222)
+        image_codes = encode_images(images, 1024)
+        print(image_codes.shape, image_codes.dtype)
+        eov = EOV_TOKEN[None].repeat_interleave(images.shape[0], dim=0).to(image_codes.device)
+        image_codes = torch.cat([image_codes, eov], dim=1)
+        image_features = self.model.vision_proj(image_codes.half())
         return image_features
 
     def prepare_inputs_for_multimodal(
@@ -77,7 +95,6 @@ class GetoVisionMetaForCausalLM(ABC):
                 cur_new_input_embeds.append(self.get_model().embed_tokens(cur_input_ids[:image_token_start]))
                 cur_new_input_embeds.append(self.get_model().embed_tokens(VISION_START.to(device)))
                 cur_new_input_embeds.append(cur_image_features)
-                cur_new_input_embeds.append(self.get_model().vision_embed_tokens(torch.tensor([EOV_TOKEN_INDEX], dtype=torch.long).to(device)))
                 cur_new_input_embeds.append(self.get_model().embed_tokens(VISION_END.to(device)))
                 cur_image_idx += 1
                 cur_input_ids = cur_input_ids[image_token_start+1:]
@@ -122,7 +139,6 @@ class GetoVisionLlamaForCausalLM(LlamaForCausalLM, GetoVisionMetaForCausalLM):
         self.model = GetoVisionLlamaModel(config)
 
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        self.vision_head = nn.Linear(config.hidden_size, config.num_vision_codes, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -168,7 +184,6 @@ class GetoVisionLlamaForCausalLM(LlamaForCausalLM, GetoVisionMetaForCausalLM):
 
         hidden_states = outputs[0]
         logits = self.lm_head(hidden_states)
-        # vision_logits = self.vision_head(hidden_states) # TODO
 
         loss = None
         if labels is not None:
